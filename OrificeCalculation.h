@@ -76,4 +76,4 @@ class OrificeCalculation
 	double m_ErrorTolerance;
 	double m_ReynoldsNo_D;
     //double m_beta;
-};
+};}; 
