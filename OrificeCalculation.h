@@ -1,5 +1,10 @@
 #pragma once
 
+#define ERCODE_ALL_OK 0
+#define ERCODE_INVALID_INPUT -1
+#define ERCODE_MAX_ITERATIONS_EXCEED -2
+#define _MAX_NO_OF_ITERATIONS 10000
+
 class OrificeCalculation
 {
   public:
@@ -8,47 +13,61 @@ class OrificeCalculation
     
     OrificeCalculation
     (
-        double viscosity /* (Pa.s)*/,
-        double density /* (kg/m^3)*/,
-		double error_tolerance
+        double viscosity	/* (Pa.s)*/,
+        double density		/* (kg/m^3)*/,
+		double error_tolerance,
+		bool compressible,	/* is the fluid compressible?*/
+		double gas_const,	/* J/KgK */
+		double inlet_temp	/* deg kelvin*/
     );
     
 	enum Tapping_Option
 	{
-		corner_tapping,
-		d_and_d_by_2_tapping,
-		flange_tapping
+		Corner_Tapping,
+		D_And_D_by_2_Tapping,
+		Flange_Tapping
 	};
 
-    double GetOrificeDiameter
+    int GetOrificeDiameter
     (     
 		double upstream_pressure,	// Pa
 		double downstream_pressure, // Pa
 		double flow_rate,			// kg/s
 		double pipe_in_diameter,	//m
 		double isentropic_exponent, //dimensionless
-		int tapping_option    
+		int tapping_option ,
+		double & orifice_dia		// orifice diameter in meters
 	);
     
-    double GetOrificeMassFlowRate
+    int GetOrificeMassFlowRate
     (
 		double upstream_pressure,	// Pa
 		double downstream_pressure, // Pa
         double pipe_in_diameter,    // m
 		double orifice_diameter	,	//m
 		double isentropic_exponent,	// dimensionless
-		int tapping_option	    
+		int tapping_option,
+		double &mass_flow_rate		// 
 	);
 
   private:
   
-	double GetOrificeMassFlowRate_NotChoked();
+	int GetOrificeMassFlowRate_InCompressible(double& mass_flow_rate);
 
-	double GetOrificeMassFlowRate_Choked();
+	int GetOrificeMassFlowRate_Compressible_I_5167(double& mass_flow_rate);
 
-	double GetOrificeDiameter_NotChoked();
+	int GetOrificeMassFlowRate_Compressible_Choked(double& mass_flow_rate);
 
-	double GetOrificeDiameter_Choked();
+	int GetOrificeMassFlowRate_Compressible_NotChoked(double& mass_flow_rate);
+
+	int GetOrificeDiameter_InCompressible(double& mass_flow_rate);
+
+	int GetOrificeDiameter_Compressible_I_5167(double &diameter);
+
+	int GetOrificeDiameter_Compressible_Choked(double &diameter);
+
+	int GetOrificeDiameter_Compressible_NotChoked(double& mass_flow_rate);
+
 
 	double CalculateDischargeCoefficient(	double beta, 
 											double pipe_inner_dia, /* meters*/
@@ -58,6 +77,9 @@ class OrificeCalculation
 	double GetReynolds_D_Assumption();
 
 	double CalculateEpsilon(double beta, double pressure_ratio, double isentropic_exponent);
+
+	int CalculateMachNumber(double inlet_pressure, double outlet_pressure,
+		double isentropic_coeff, double& Mach_number);
 
 	void GetPressureTappingSpacing(Tapping_Option tapping_option, 
 									double pipe_inner_dia, 
@@ -75,5 +97,8 @@ class OrificeCalculation
 	double m_FlowRate;
 	double m_ErrorTolerance;
 	double m_ReynoldsNo_D;
+	bool m_Compressible;
+	double m_GasConst_R;
+	double m_InletTemp;
     //double m_beta;
-};
+}; 

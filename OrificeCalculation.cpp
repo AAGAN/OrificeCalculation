@@ -1,28 +1,41 @@
 #include "Math.h"
 #include "OrificeCalculation.h"
 
-#define CHOCKING_PRESSURE_RATIO 0.75 // required?
+#define _I_5167_PRESSURE_RATIO_LIMIT_ 0.75 // required?
+#define _CHOKING_PRESSURE_RATIO_UPPER_LIMIT_ 0.587
+#define _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ 0.487
+
+
 #define ATMOSPHERIC_PRESSURE_Pa 101325 // required?
 #define _PI_ 3.14159265359
 #define _METER_TO_MM_ 1000
 #define _e_ 2.718281828
+#define _ORIFICE_FLOW_COEFF_ 0.6
 
 OrificeCalculation::OrificeCalculation
     (
         double viscosity /* (Pa.s) */,
         double  density /*(kg/m^3) */,
-		double error_tolerance
+		double error_tolerance,
+		bool compressible,
+		double gas_const,
+		double inlet_temp
     )
     {
 		m_Viscosity = viscosity;
 		m_Density = density;
 		m_ErrorTolerance = error_tolerance;
+		m_Compressible = compressible;
+		m_GasConst_R = gas_const;
+		m_InletTemp = inlet_temp;
     }
     
-	double OrificeCalculation::GetOrificeDiameter (double upstream_pressure, double downstream_pressure,
+	int OrificeCalculation::GetOrificeDiameter (double upstream_pressure, double downstream_pressure,
 												  double flow_rate, double pipe_in_diameter,
-												  double isentropic_exponent, int tapping_option)
+												  double isentropic_exponent, int tapping_option,
+													double &orifice_dia)
     {
+		int err_code = 0;
 		double result = 0;
 		m_UpstreamP = upstream_pressure;
 		m_DownstreamP = downstream_pressure;
@@ -30,17 +43,38 @@ OrificeCalculation::OrificeCalculation
 		m_FlowRate = flow_rate;
 		m_K = isentropic_exponent;
 		m_TappingOption = (Tapping_Option) tapping_option;
-		double pressure_ratio = downstream_pressure / upstream_pressure;
-		if (pressure_ratio > CHOCKING_PRESSURE_RATIO)
-			result = GetOrificeDiameter_NotChoked();
+
+		if (m_Compressible == false)
+		{
+			err_code = GetOrificeDiameter_InCompressible(orifice_dia);
+		}
 		else
-			result = GetOrificeDiameter_Choked();
-        return result;
+		{
+			double pressure_ratio = downstream_pressure / upstream_pressure;
+			if (pressure_ratio > _I_5167_PRESSURE_RATIO_LIMIT_)
+				err_code = GetOrificeDiameter_Compressible_I_5167(orifice_dia);
+			else if (pressure_ratio > _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ &&
+						pressure_ratio < _CHOKING_PRESSURE_RATIO_UPPER_LIMIT_)
+				err_code = GetOrificeDiameter_Compressible_Choked(orifice_dia);
+			else
+				err_code = GetOrificeDiameter_Compressible_NotChoked(orifice_dia);
+		}
+
+		return err_code;
     }
 
-	double OrificeCalculation::GetOrificeDiameter_NotChoked()
+	int OrificeCalculation::GetOrificeDiameter_InCompressible(double& orifice_dia)
 	{
-		double result = 0;
+		int er_code = 0;
+		double orifice_area = m_FlowRate / (_ORIFICE_FLOW_COEFF_ * sqrt(2 * m_Density * (m_UpstreamP - m_DownstreamP)));
+		orifice_dia = sqrt(orifice_area * 4 / _PI_);
+		return er_code;
+	}
+
+
+	int OrificeCalculation::GetOrificeDiameter_Compressible_I_5167(double& diameter)
+	{
+		int err_code = 0;
 		double X2_final = 0;
 		// Calculate Reynolds No for Diameter
 		double Re_D = 4 * m_FlowRate / (_PI_ * m_Viscosity * m_D);
@@ -105,39 +139,81 @@ OrificeCalculation::OrificeCalculation
 		}
 
 		double beta_final = pow((X2_final* X2_final / (1 + X2_final* X2_final)), 0.25);
-		result = beta_final * m_D;
+		diameter = beta_final * m_D;
 
-		return result;
+		return err_code;
 	}
 
-	double OrificeCalculation::GetOrificeDiameter_Choked()
+	int OrificeCalculation::GetOrificeDiameter_Compressible_Choked(double& diameter)
 	{
-		double result = 0;
-		return result;
+		int err_code = 0;
+		double temp_calc_1 = sqrt(m_K / (m_GasConst_R* m_InletTemp));
+		double temp_calc_2 = pow(
+			(2 / (m_K + 1)),
+			(m_K + 1) / (2 * (m_K - 1))
+		);
+		double Area_throat = m_FlowRate/  (m_UpstreamP * temp_calc_1 * temp_calc_2);
+		diameter = sqrt(4 * Area_throat / _PI_);
+		return err_code;
 	}
 
-	double OrificeCalculation::GetOrificeMassFlowRate ( double upstream_pressure, double downstream_pressure,
+	int OrificeCalculation::GetOrificeDiameter_Compressible_NotChoked(double& diameter)
+	{
+		int err_code = 0;
+		double temp_calc_1 = m_UpstreamP / sqrt(m_InletTemp) * sqrt(m_K /  m_GasConst_R);
+		double mach_number = 0;
+		err_code = CalculateMachNumber(m_UpstreamP, m_DownstreamP, m_K, mach_number);
+		double temp_calc_2 = mach_number * (1 + (m_K - 1) / 2 * pow(mach_number, 2) );
+		double temp_calc_3 = -1 * (m_K + 1) / (2 * (m_K - 1));
+		double orifice_area = m_FlowRate / (temp_calc_1 * pow(temp_calc_2, temp_calc_3));
+		diameter = sqrt( 4 * orifice_area/ _PI_ );
+		return err_code;
+	}
+
+	int OrificeCalculation::GetOrificeMassFlowRate ( double upstream_pressure, double downstream_pressure,
 														double pipe_in_diameter,  double orifice_diameter,
-														double isentropic_exponent, int tapping_option)
+														double isentropic_exponent, int tapping_option,
+														double &flow_rate)
     {
-		double result = 0.0;
+		int err_code = 0;
 		m_UpstreamP = upstream_pressure;
 		m_DownstreamP = downstream_pressure;
 		m_D = pipe_in_diameter;	
 		m_d = orifice_diameter;	
 		m_K = isentropic_exponent;
 		m_TappingOption = (Tapping_Option) tapping_option;
-		double pressure_ratio = downstream_pressure / upstream_pressure;
-		if (pressure_ratio > CHOCKING_PRESSURE_RATIO)
-			result = GetOrificeMassFlowRate_NotChoked();
+
+		// is the fluid compressible or not?
+		if (m_Compressible == false) // incompressible
+		{
+			err_code = GetOrificeMassFlowRate_InCompressible(flow_rate);
+		}
 		else
-			result = GetOrificeMassFlowRate_Choked();
-        return result;
+		{
+			double pressure_ratio = downstream_pressure / upstream_pressure;
+			if (pressure_ratio > _I_5167_PRESSURE_RATIO_LIMIT_)
+				err_code = GetOrificeMassFlowRate_Compressible_I_5167(flow_rate);
+			else if (pressure_ratio > _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ &&
+					pressure_ratio < _CHOKING_PRESSURE_RATIO_UPPER_LIMIT_)
+				err_code = GetOrificeMassFlowRate_Compressible_Choked(flow_rate);
+			else
+				err_code = GetOrificeMassFlowRate_Compressible_NotChoked(flow_rate);
+		}
+		return err_code;
     }
 
-	double OrificeCalculation::GetOrificeMassFlowRate_NotChoked()
+	int OrificeCalculation::GetOrificeMassFlowRate_InCompressible(double& flow_rate)
 	{
-		double result = 0;
+		int er_code = 0;
+		flow_rate = _ORIFICE_FLOW_COEFF_ *
+					(_PI_ *  pow(m_d, 2) / 4) *
+					sqrt(2 * m_Density * (m_UpstreamP - m_DownstreamP));
+		return er_code;
+	}
+
+	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_I_5167(double & flow_rate)
+	{
+		int err_code = 0;
 
 		// Calculate Beta
 		double beta = m_d / m_D;
@@ -179,8 +255,14 @@ OrificeCalculation::OrificeCalculation
 		double X_2_before = X2;
 		double er_1_before = delta1;
 		double er_2_before = delta2;
+		int no_of_iterations = 0;
 		while (error_larger_than_tolerance)
 		{	// some check to see if fails to converge?
+			no_of_iterations++;
+			if (no_of_iterations > _MAX_NO_OF_ITERATIONS)
+			{
+				return ERCODE_MAX_ITERATIONS_EXCEED;
+			}
 			double X_temp = X_1_before - er_1_before * (X_1_before - X_2_before) / (er_1_before - er_2_before);
 			double C_temp = CalculateDischargeCoefficient(beta, m_D, X_temp, m_TappingOption);
 			double error = fabs((A1 - X_temp / C_temp) / A1);
@@ -200,15 +282,35 @@ OrificeCalculation::OrificeCalculation
 			}
 		}
 
-		result = _PI_ / 4 * m_Viscosity * m_D * X;
-		return result;
+		flow_rate = _PI_ / 4 * m_Viscosity * m_D * X;
+		return err_code;
 
 	}
 
-	double OrificeCalculation::GetOrificeMassFlowRate_Choked()
+	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_Choked(double &flow_rate)
 	{
-		double result = 0;
-		return result;
+		int err_code = 0;
+		double temp_calc_1 = sqrt(m_K / (m_GasConst_R* m_InletTemp));
+		double temp_calc_2 = pow(
+			(2 / (m_K + 1)),
+			(m_K + 1) / (2 * (m_K - 1))
+		);
+		double Area_throat = _PI_ * pow(m_d, 2) / 4;
+		flow_rate = Area_throat * m_UpstreamP * temp_calc_1 * temp_calc_2;
+		return err_code;
+	}
+
+	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_NotChoked(double &flow_rate)
+	{
+		int err_code = 0;
+		double temp_calc_1 = m_UpstreamP / sqrt(m_InletTemp) * sqrt(m_K /  m_GasConst_R);
+		double mach_number = 0;
+		err_code = CalculateMachNumber(m_UpstreamP, m_DownstreamP, m_K, mach_number);
+		double temp_calc_2 = mach_number * (1 + (m_K - 1) / 2 * pow(mach_number, 2) );
+		double temp_calc_3 = -1 * (m_K + 1) / (2 * (m_K - 1));
+		double orifice_area = _PI_ * pow(m_d,2) / 4;
+		flow_rate = orifice_area * temp_calc_1 * pow( temp_calc_2, temp_calc_3);
+		return err_code;
 	}
 
 	double OrificeCalculation::CalculateEpsilon(double beta, double pressure_ratio, double isentropic_exponent)
@@ -222,19 +324,19 @@ OrificeCalculation::OrificeCalculation
 	{
 		switch (tapping_option) // make this a function
 		{
-			case (Tapping_Option::corner_tapping):
+			case (Tapping_Option::Corner_Tapping):
 			{
 				L1 = 0;
 				L2 = 0;
 			}
 			break;
-			case (Tapping_Option::d_and_d_by_2_tapping):
+			case (Tapping_Option::D_And_D_by_2_Tapping):
 			{
 				L1 = 1;
 				L2 = 0.47;
 			}
 			break;
-			case (Tapping_Option::flange_tapping):
+			case (Tapping_Option::Flange_Tapping):
 			{
 				L1 = 25.4 / (pipe_inner_dia* _METER_TO_MM_);
 				L2 = L1;
@@ -270,14 +372,23 @@ OrificeCalculation::OrificeCalculation
 
 	}
 
+	int OrificeCalculation::CalculateMachNumber(double inlet_pr, double outlet_pr,
+		double isentropic_coeff, double& Mach_number)
+	{
+		int er_code = 0;
+		double calc_step_1 = pow((inlet_pr / outlet_pr), (isentropic_coeff - 1) / isentropic_coeff) - 1;
+		Mach_number = pow(calc_step_1 * 2 / (isentropic_coeff - 1), 0.5);
+		return er_code;
+	}
+
 	double OrificeCalculation::GetReynolds_D_Assumption()
 	{
 		double result = 0;
 		double beta = m_d / m_D;
 		switch (m_TappingOption)
 		{
-			case Tapping_Option::corner_tapping:
-			case Tapping_Option::d_and_d_by_2_tapping:
+			case Tapping_Option::Corner_Tapping:
+			case Tapping_Option::D_And_D_by_2_Tapping:
 			{
 				if (beta >= 0.1 && beta <= 0.56)
 					result = 5000;
@@ -287,7 +398,7 @@ OrificeCalculation::OrificeCalculation
 					result = 0; // this should be error?
 			}
 			break;
-			case Tapping_Option::flange_tapping:
+			case Tapping_Option::Flange_Tapping:
 			{
 				result = 170 * pow(beta, 2) * m_D * _METER_TO_MM_;
 				if (result < 5000)
