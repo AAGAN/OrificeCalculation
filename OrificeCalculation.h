@@ -1,9 +1,16 @@
 #pragma once
 
+// Error codes
 #define ERCODE_ALL_OK 0
 #define ERCODE_INVALID_INPUT -1
 #define ERCODE_MAX_ITERATIONS_EXCEED -2
-#define _MAX_NO_OF_ITERATIONS 10000
+#define ERCODE_ERROR_DIVERGING -3
+#define ERCODE_PRESSURE_DROP_NEGATIVE -4
+#define ERCODE_MACH_NUMBER_NEGATIVE -5
+#define ERCODE_REYNOLDS_NUMBER_NEGATIVE -6
+#define ERCODE_DISCHARGE_COEFFICIENT_NEGATIVE -7
+
+#define MAX_NO_OF_ITERATIONS 10000
 
 class OrificeCalculation
 {
@@ -23,6 +30,7 @@ class OrificeCalculation
     
 	enum Tapping_Option
 	{
+		Not_Applicable,
 		Corner_Tapping,
 		D_And_D_by_2_Tapping,
 		Flange_Tapping
@@ -51,6 +59,8 @@ class OrificeCalculation
 	);
 
   private:
+
+	int ValidateInputs();
   
 	int GetOrificeMassFlowRate_InCompressible(double& mass_flow_rate);
 
@@ -69,10 +79,11 @@ class OrificeCalculation
 	int GetOrificeDiameter_Compressible_NotChoked(double& mass_flow_rate);
 
 
-	double CalculateDischargeCoefficient(	double beta, 
+	int CalculateDischargeCoefficient(	double beta, 
 											double pipe_inner_dia, /* meters*/
 											double Reynolds_No_D, 
-											Tapping_Option tapping_option);
+											Tapping_Option tapping_option,
+											double & disch_coeff);
 
 	double GetReynolds_D_Assumption();
 

@@ -5,7 +5,6 @@
 #define _CHOKING_PRESSURE_RATIO_UPPER_LIMIT_ 0.587
 #define _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ 0.487
 
-
 #define ATMOSPHERIC_PRESSURE_Pa 101325 // required?
 #define _PI_ 3.14159265359
 #define _METER_TO_MM_ 1000
@@ -29,6 +28,19 @@ OrificeCalculation::OrificeCalculation
 		m_GasConst_R = gas_const;
 		m_InletTemp = inlet_temp;
     }
+
+	int OrificeCalculation::ValidateInputs()
+	{
+		if (m_Viscosity < 0 || m_Density < 0 || m_Density < 0 || m_GasConst_R < 0 || m_InletTemp < 0
+			|| m_UpstreamP < 0 || m_DownstreamP < 0 || m_D < 0
+			|| (m_d < 0 && m_FlowRate < 0) || m_K < 0
+			|| m_TappingOption < 0)
+			return ERCODE_INVALID_INPUT;
+		else if (m_UpstreamP < m_DownstreamP)
+			return ERCODE_ERROR_DIVERGING;
+		else
+			return ERCODE_ALL_OK;
+	}
     
 	int OrificeCalculation::GetOrificeDiameter (double upstream_pressure, double downstream_pressure,
 												  double flow_rate, double pipe_in_diameter,
@@ -44,6 +56,9 @@ OrificeCalculation::OrificeCalculation
 		m_K = isentropic_exponent;
 		m_TappingOption = (Tapping_Option) tapping_option;
 
+		err_code = ValidateInputs();
+		if (err_code < 0)
+			return err_code;
 		if (m_Compressible == false)
 		{
 			err_code = GetOrificeDiameter_InCompressible(orifice_dia);
@@ -86,7 +101,10 @@ OrificeCalculation::OrificeCalculation
 
 		bool error_larger_than_tolerance = true;
 		double beta_1 = 0.2;		// first assumption
-		double C1 = CalculateDischargeCoefficient(beta_1, m_D, Re_D, m_TappingOption);
+		double C1 = 0;
+		err_code = CalculateDischargeCoefficient(beta_1, m_D, Re_D, m_TappingOption, C1);
+		if (err_code < 0)
+			return err_code;
 		double epsilon1 = CalculateEpsilon(beta_1, pressure_ratio, m_K);
 		double X2_1 = pow(beta_1, 2) / sqrt(1 - pow(beta_1, 4));
 		double delta1 = fabs( (A2 - X2_1* C1* epsilon1) / A2);
@@ -97,7 +115,10 @@ OrificeCalculation::OrificeCalculation
 			X2_final = X2_1;
 		}
 		double beta_2 = 0.1;	// second assumption
-		double C2 = CalculateDischargeCoefficient(beta_2, m_D, Re_D, m_TappingOption);
+		double C2 = 0;
+		err_code = CalculateDischargeCoefficient(beta_2, m_D, Re_D, m_TappingOption,C2);
+		if (err_code < 0)
+			return err_code;
 		double epsilon2 = CalculateEpsilon(beta_2, pressure_ratio, m_K);
 		double X2_2 = pow(beta_2, 2) / sqrt(1 - pow(beta_2, 4));
 		double delta2 = fabs((A2 - X2_2* C2* epsilon2) / A2);
@@ -110,15 +131,27 @@ OrificeCalculation::OrificeCalculation
 
 		double X2_1_before = X2_1;
 		double X2_2_before = X2_2;
-		double er_1_before = delta1;
-		double er_2_before = delta2;
+		double er_1_before = delta1;	// error before 1 iteration
+		double er_2_before = delta2;	// error before 2 iterations
 		double beta_temp = 0;
+		int no_of_iterations = 0;
+		int err_is_converging = 1;
 		while (error_larger_than_tolerance)
 		{	// some check to see if fails to converge?
+			++no_of_iterations;
+			if (no_of_iterations > MAX_NO_OF_ITERATIONS)
+				return ERCODE_MAX_ITERATIONS_EXCEED;
+			if (er_2_before > er_1_before)
+				err_is_converging *= 2;
+			else
+				err_is_converging = 1;
+			if (err_is_converging > 64)	// not converged for last six iterations
+				return ERCODE_ERROR_DIVERGING;
 			double X2_temp = X2_1_before - er_1_before * (X2_1_before - X2_2_before) / (er_1_before - er_2_before);
 			double var_temp = X2_temp* X2_temp / (1 + X2_temp* X2_temp);
 			double beta_temp = pow(  X2_temp* X2_temp / (1 + X2_temp* X2_temp) , 0.25);
-			double C_temp = CalculateDischargeCoefficient(beta_temp, m_D, Re_D, m_TappingOption);
+			double C_temp = 0;
+			err_code = CalculateDischargeCoefficient(beta_temp, m_D, Re_D, m_TappingOption, C_temp);
 			double epsilon_temp = CalculateEpsilon(beta_temp, pressure_ratio, m_K);
 
 			double error = fabs((A2 - X2_temp * C_temp* epsilon_temp) / A2) ;
@@ -233,8 +266,11 @@ OrificeCalculation::OrificeCalculation
 		double X2 = GetReynolds_D_Assumption() * 1.4;
 
 		// Calculate discharge coefficients C1,C2
-		double C1 = CalculateDischargeCoefficient(beta, m_D, X1, m_TappingOption);
-		double C2 = CalculateDischargeCoefficient(beta, m_D, X2, m_TappingOption);
+		double C1, C2 = 0;
+		err_code = CalculateDischargeCoefficient(beta, m_D, X1, m_TappingOption, C1);
+		err_code = CalculateDischargeCoefficient(beta, m_D, X2, m_TappingOption, C2);
+		if (C1 < 0 || C2 < 0)
+			return ERCODE_DISCHARGE_COEFFICIENT_NEGATIVE;
 
 		//calculate two errors
 		bool error_larger_than_tolerance = true;
@@ -256,15 +292,21 @@ OrificeCalculation::OrificeCalculation
 		double er_1_before = delta1;
 		double er_2_before = delta2;
 		int no_of_iterations = 0;
+		int err_is_converging = 1;
 		while (error_larger_than_tolerance)
 		{	// some check to see if fails to converge?
-			no_of_iterations++;
-			if (no_of_iterations > _MAX_NO_OF_ITERATIONS)
-			{
+			++no_of_iterations;
+			if (no_of_iterations > MAX_NO_OF_ITERATIONS)
 				return ERCODE_MAX_ITERATIONS_EXCEED;
-			}
+			if (er_2_before > er_1_before)
+				err_is_converging *= 2;
+			else
+				err_is_converging = 1;
+			if (err_is_converging > 64)	// not converged for last six iterations
+				return ERCODE_ERROR_DIVERGING;
 			double X_temp = X_1_before - er_1_before * (X_1_before - X_2_before) / (er_1_before - er_2_before);
-			double C_temp = CalculateDischargeCoefficient(beta, m_D, X_temp, m_TappingOption);
+			double C_temp = 0;
+			err_code = CalculateDischargeCoefficient(beta, m_D, X_temp, m_TappingOption, C_temp);
 			double error = fabs((A1 - X_temp / C_temp) / A1);
 			if (error < m_ErrorTolerance)
 			{
@@ -345,8 +387,9 @@ OrificeCalculation::OrificeCalculation
 		}
 	}
 
-	double OrificeCalculation::CalculateDischargeCoefficient( double beta, double pipe_inner_dia, 
-															  double Reynolds_No_D, Tapping_Option tapping_option)
+	int OrificeCalculation::CalculateDischargeCoefficient( double beta, double pipe_inner_dia, 
+															  double Reynolds_No_D, Tapping_Option tapping_option, 
+															double & disch_coeff)
 	{
 		// Formula from ISO 5167-2:2003(E) section 5.3.2.1
 		//double beta = m_d / m_D;
@@ -368,7 +411,11 @@ OrificeCalculation::OrificeCalculation
 		}
 		C += C_adjustment;
 
-		return C;
+		disch_coeff = C;
+		if (C < 0)
+			return ERCODE_DISCHARGE_COEFFICIENT_NEGATIVE;
+		else
+			return ERCODE_ALL_OK;
 
 	}
 
@@ -378,6 +425,8 @@ OrificeCalculation::OrificeCalculation
 		int er_code = 0;
 		double calc_step_1 = pow((inlet_pr / outlet_pr), (isentropic_coeff - 1) / isentropic_coeff) - 1;
 		Mach_number = pow(calc_step_1 * 2 / (isentropic_coeff - 1), 0.5);
+		if (Mach_number < 0)
+			er_code = ERCODE_MACH_NUMBER_NEGATIVE;
 		return er_code;
 	}
 
