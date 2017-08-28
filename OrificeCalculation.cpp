@@ -1,4 +1,3 @@
-#include "Math.h"
 #include "OrificeCalculation.h"
 
 #define _I_5167_PRESSURE_RATIO_LIMIT_ 0.75 // required?
