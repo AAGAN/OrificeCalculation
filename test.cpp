@@ -201,6 +201,8 @@ int TestFile()
 
 int TestHardCodedCases()
 {
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
 	// Test case 1: Orifice flow rate
 	if (false)
 	{
@@ -247,7 +249,7 @@ int TestHardCodedCases()
 		double upstream_pressure = 600000;
 		double downstream_pressure = 500000;
 		double pipe_inner_dia = 0.1;
-		double flow_rate = 0.0248;
+		double flow_rate = 0.2498;
 		double isentropic_exponent = 1.3;
 		OrificeCalculation::Tapping_Option tapping_option = OrificeCalculation::Tapping_Option::Corner_Tapping;
 
@@ -259,7 +261,7 @@ int TestHardCodedCases()
 																		gas_constant, inlet_temp);	
 		er_code = test_calculation.GetOrificeDiameter( upstream_pressure,downstream_pressure,flow_rate,
 												 pipe_inner_dia, isentropic_exponent, tapping_option, diameter);
-		_ASSERT(er_code == 0 &&  fabs(diameter - 0.02480) < 1e-4); // diameter shold be 0.02480	
+		_ASSERT(er_code == 0 &&  fabs(diameter - 0.02489) < 1e-4); // diameter shold be 0.02480	
 	}
 
 	// Test case 3 : Orifice flowrate, incompressible
@@ -324,8 +326,8 @@ int TestHardCodedCases()
 		_ASSERT(er_code == 0 && fabs(orifice_dia - 0.025) < 1e-2); // flow_rate should be 0.025
 	}
 
-	// Test case 4 : Orifice flowrate, tapping option - flange
-	if(false)
+	// Test case 5 : Orifice flowrate, tapping option - flange
+	if(true)
 	{
 		// Input values
 		double viscosity = 4.0416e-6;
@@ -353,10 +355,10 @@ int TestHardCodedCases()
 														  tapping_option, 
 														  flow_rate);
 
-		//_ASSERT(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
+		_ASSERT(er_code == 0 && fabs(flow_rate - 0.2443) < 1e-2); 
 	}
 
-	// Test case 5 : Choked flow, compressible, calculate mass flow rate
+	// Test case 6 : Choked flow, compressible, calculate mass flow rate
 	if(false)
 	{
 		// Input values
@@ -385,11 +387,11 @@ int TestHardCodedCases()
 														  tapping_option, 
 														  flow_rate);
 
-		//_ASSERT(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
+		_ASSERT(er_code == 0 && fabs(flow_rate - 1.0434) < 1e-2); 
 	}
 
 	// Test case 5 : Choked flow, compressible, calculate orifice dia
-	if(false)
+	if(true)
 	{
 		// Input values
 		double viscosity = 4.0416e-6;
@@ -416,7 +418,7 @@ int TestHardCodedCases()
 														  tapping_option, 
 														  orifice_dia);
 
-		//_ASSERT(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
+		_ASSERT(er_code == 0 && fabs(orifice_dia - 0.0248) < 1e-2); 
 	}
 	return 0;
 }
