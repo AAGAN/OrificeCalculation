@@ -61,20 +61,20 @@ OrificeCalculation::OrificeCalculation
 			return err_code;
 		if (m_Compressible == false)
 		{
-			err_code = GetOrificeDiameter_InCompressible(orifice_dia);
+			err_code = GetOrificeDiameter_I_5167(orifice_dia);
 		}
 		else
 		{
 			double pressure_ratio = downstream_pressure / upstream_pressure;
 			if (pressure_ratio > _I_5167_PRESSURE_RATIO_LIMIT_)
-				err_code = GetOrificeDiameter_Compressible_I_5167(orifice_dia);
+				err_code = GetOrificeDiameter_I_5167(orifice_dia);
 			else
 				err_code = GetOrificeDiameter_Compressible_Choked(orifice_dia);
 		}
 
 		return err_code;
     }
-
+/*
 	int OrificeCalculation::GetOrificeDiameter_InCompressible(double& orifice_dia)
 	{
 		int er_code = 0;
@@ -82,9 +82,9 @@ OrificeCalculation::OrificeCalculation
 		orifice_dia = sqrt(orifice_area * 4 / _PI_);
 		return er_code;
 	}
+*/
 
-
-	int OrificeCalculation::GetOrificeDiameter_Compressible_I_5167(double& diameter)
+	int OrificeCalculation::GetOrificeDiameter_I_5167(double& diameter)
 	{
 		int err_code = 0;
 		double X2_final = 0;
@@ -221,19 +221,19 @@ OrificeCalculation::OrificeCalculation
 		// is the fluid compressible or not?
 		if (m_Compressible == false) // incompressible
 		{
-			err_code = GetOrificeMassFlowRate_InCompressible(flow_rate);
+			err_code = GetOrificeMassFlowRate_I_5167(flow_rate);
 		}
 		else
 		{
 			double pressure_ratio = downstream_pressure / upstream_pressure;
 			if (pressure_ratio > _I_5167_PRESSURE_RATIO_LIMIT_)
-				err_code = GetOrificeMassFlowRate_Compressible_I_5167(flow_rate);
+				err_code = GetOrificeMassFlowRate_I_5167(flow_rate);
 			else
 				err_code = GetOrificeMassFlowRate_Compressible_Choked(flow_rate);
 		}
 		return err_code;
     }
-
+/*
 	int OrificeCalculation::GetOrificeMassFlowRate_InCompressible(double& flow_rate)
 	{
 		int er_code = 0;
@@ -242,8 +242,8 @@ OrificeCalculation::OrificeCalculation
 					sqrt(2 * m_Density * (m_UpstreamP - m_DownstreamP));
 		return er_code;
 	}
-
-	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_I_5167(double & flow_rate)
+*/
+	int OrificeCalculation::GetOrificeMassFlowRate_I_5167(double & flow_rate)
 	{
 		int err_code = 0;
 
@@ -360,7 +360,11 @@ OrificeCalculation::OrificeCalculation
 	double OrificeCalculation::CalculateEpsilon(double beta, double pressure_ratio, double isentropic_exponent)
 	{
 		// ISO 5167-2:2003(E) , Section 5.2.2.2
-		double epsilon = 1 - (0.351 + 0.256 * pow(beta, 4) + 0.93 * pow(beta, 8)) * (1 - pow(pressure_ratio, (1 / isentropic_exponent)));
+		double epsilon = 0;
+		if (!m_Compressible)
+			epsilon = 1;
+		else
+			epsilon = 1 - (0.351 + 0.256 * pow(beta, 4) + 0.93 * pow(beta, 8)) * (1 - pow(pressure_ratio, (1 / isentropic_exponent)));
 		return epsilon;
 	}
 

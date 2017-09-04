@@ -63,17 +63,17 @@ class OrificeCalculation
 
 	int ValidateInputs();
   
-	int GetOrificeMassFlowRate_InCompressible(double& mass_flow_rate);
+	//int GetOrificeMassFlowRate_InCompressible(double& mass_flow_rate);
 
-	int GetOrificeMassFlowRate_Compressible_I_5167(double& mass_flow_rate);
+	int GetOrificeMassFlowRate_I_5167(double& mass_flow_rate);
 
 	int GetOrificeMassFlowRate_Compressible_Choked(double& mass_flow_rate);
 
 	//int GetOrificeMassFlowRate_Compressible_NotChoked(double& mass_flow_rate);
 
-	int GetOrificeDiameter_InCompressible(double& mass_flow_rate);
+	//int GetOrificeDiameter_InCompressible(double& mass_flow_rate);
 
-	int GetOrificeDiameter_Compressible_I_5167(double &diameter);
+	int GetOrificeDiameter_I_5167(double &diameter);
 
 	int GetOrificeDiameter_Compressible_Choked(double &diameter);
 
