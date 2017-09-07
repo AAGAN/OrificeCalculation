@@ -1,0 +1,55 @@
+**** this is input definition file
+**** any line that starts with '*' will be ignored
+**** and treated as comment line
+**** note that all the words used for input giving are in small letters
+**** no capital letters used except in notes and comments.
+**** the way we give input is word on one line
+**** followed by the number or letter on the next line
+*****************************************
+**** also to be noted: this input.txt or any other file created like this for testing
+**** needs to be present in the same directory as the exe
+**** you can create as many files as you want, but they all need to be
+**** in the same directory as exe file
+*****************************************
+**** calc type f = flow rate, d = orifice diameter ****
+calculation_type
+f
+**** viscosity unit is (Pa.s)****
+viscosity
+0.0000040416
+**** density unit kg / meter^3 ****
+density
+4.0175
+**** error tolerance, no unit ****
+error_tolerance
+0.0001
+**** compressible t = true, f = false ****
+compressible
+t
+**** gas_const R, J / Kg deg K ****
+gas_constant
+252.502
+**** inlet temp, deg K ****
+inlet_temp
+300
+**** upstream pressure, Pascal ****
+upstream_pressure
+600000
+**** downstream pressure, Pascal ****
+downstream_pressure
+500000
+**** pipe inside dia, meters ****
+pipe_inner_dia
+0.1
+**** orifice diameter (only to be given for flow rate calc type) , meters ****
+orifice_dia
+0.025
+**** isentropic exponent , dimensionless****
+isentropic_exponent
+1.3
+**** tapping option, (input values are na, corner, d_and_d_by_2, flange) ****
+tapping_option
+flange
+**** end of inputs
+
+
