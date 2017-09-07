@@ -1,5 +1,7 @@
 #pragma once
 
+#include "math.h"
+
 // Error codes
 #define ERCODE_ALL_OK 0
 #define ERCODE_INVALID_INPUT -1

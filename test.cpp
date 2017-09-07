@@ -1,5 +1,6 @@
 #include "OrificeCalculation.h"
 #include <iostream>
+#include <assert.h>
 
 // basic file operations
 #include <iostream>
@@ -202,6 +203,7 @@ int TestFile()
 
 int TestHardCodedCases()
 {
+
 	// For testing and validation, the following website was used
 	// http://www.pipeflowcalculations.net/orifice.xhtml
 	// Test case 1: Orifice flow rate calculation
@@ -238,6 +240,7 @@ int TestHardCodedCases()
 		assert(er_code == 0 && fabs(flow_rate - 0.2520) < 1e-4); // flow_rate should be 0.2520
 	}
 
+
 	// Test case 2 : Orifice diameter calculation
 	// For testing and validation, the following website was used
 	// http://www.pipeflowcalculations.net/orifice.xhtml
@@ -245,7 +248,7 @@ int TestHardCodedCases()
 	// compressible fluids
 	// pressure drop ratio > 0.75, so ISO 5167 based calculation	
 	if (false)
-	{
+  {
 		// Input values
 		double viscosity = 4.0416e-6;
 		double density = 4.0175;
@@ -341,6 +344,7 @@ int TestHardCodedCases()
 														  flow_rate, pipe_inner_dia, isentropic_exponent,
 														  tapping_option, 
 														  orifice_dia);
+
 		assert(er_code == 0 && fabs(orifice_dia - 0.025) < 1e-2); 
 
 		// test case for flow rate
@@ -461,6 +465,7 @@ int TestHardCodedCases()
 														  pipe_inner_dia, isentropic_exponent,
 														  tapping_option, 
 														  orifice_dia);
+
 
 		assert(er_code == 0 && fabs(orifice_dia - 0.0248) < 1e-2); 
 	}
