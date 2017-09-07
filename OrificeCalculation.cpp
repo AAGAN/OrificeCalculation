@@ -5,7 +5,7 @@
 #define _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ 0.487
 
 #define ATMOSPHERIC_PRESSURE_Pa 101325 // required?
-#define _PI_ 3.14159265359
+#define _PI_ 3.14159265359 
 #define _METER_TO_MM_ 1000
 #define _e_ 2.718281828
 #define _ORIFICE_FLOW_COEFF_ 0.6
@@ -36,7 +36,7 @@ OrificeCalculation::OrificeCalculation
 			|| m_TappingOption < 0)
 			return ERCODE_INVALID_INPUT;
 		else if (m_UpstreamP < m_DownstreamP)
-			return ERCODE_ERROR_DIVERGING;
+			return ERCODE_PRESSURE_DROP_NEGATIVE;
 		else
 			return ERCODE_ALL_OK;
 	}
@@ -60,23 +60,20 @@ OrificeCalculation::OrificeCalculation
 			return err_code;
 		if (m_Compressible == false)
 		{
-			err_code = GetOrificeDiameter_InCompressible(orifice_dia);
+			err_code = GetOrificeDiameter_I_5167(orifice_dia);
 		}
 		else
 		{
 			double pressure_ratio = downstream_pressure / upstream_pressure;
 			if (pressure_ratio > _I_5167_PRESSURE_RATIO_LIMIT_)
-				err_code = GetOrificeDiameter_Compressible_I_5167(orifice_dia);
-			else if (pressure_ratio > _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ &&
-						pressure_ratio < _CHOKING_PRESSURE_RATIO_UPPER_LIMIT_)
-				err_code = GetOrificeDiameter_Compressible_Choked(orifice_dia);
+				err_code = GetOrificeDiameter_I_5167(orifice_dia);
 			else
-				err_code = GetOrificeDiameter_Compressible_NotChoked(orifice_dia);
+				err_code = GetOrificeDiameter_Compressible_Choked(orifice_dia);
 		}
 
 		return err_code;
     }
-
+/*
 	int OrificeCalculation::GetOrificeDiameter_InCompressible(double& orifice_dia)
 	{
 		int er_code = 0;
@@ -84,9 +81,9 @@ OrificeCalculation::OrificeCalculation
 		orifice_dia = sqrt(orifice_area * 4 / _PI_);
 		return er_code;
 	}
+*/
 
-
-	int OrificeCalculation::GetOrificeDiameter_Compressible_I_5167(double& diameter)
+	int OrificeCalculation::GetOrificeDiameter_I_5167(double& diameter)
 	{
 		int err_code = 0;
 		double X2_final = 0;
@@ -128,23 +125,24 @@ OrificeCalculation::OrificeCalculation
 			X2_final = X2_2;
 		}
 
-		double X2_1_before = X2_1;
-		double X2_2_before = X2_2;
-		double er_1_before = delta1;	// error before 1 iteration
-		double er_2_before = delta2;	// error before 2 iterations
+		// Start iterating till error stabilizes
+		double X2_1_before = X2_1;		// X2 before 1 generation
+		double X2_2_before = X2_2;		// X2 before 2 generation
+		double er_1_before = delta1;	// error before 1 generation
+		double er_2_before = delta2;	// error before 2 generation
 		double beta_temp = 0;
 		int no_of_iterations = 0;
-		int err_is_converging = 1;
+		int err_converge_tracker = 0;
 		while (error_larger_than_tolerance)
 		{	// some check to see if fails to converge?
 			++no_of_iterations;
 			if (no_of_iterations > MAX_NO_OF_ITERATIONS)
 				return ERCODE_MAX_ITERATIONS_EXCEED;
 			if (er_2_before > er_1_before)
-				err_is_converging *= 2;
+				err_converge_tracker += 1;
 			else
-				err_is_converging = 1;
-			if (err_is_converging > 64)	// not converged for last six iterations
+				err_converge_tracker = 0;
+			if (err_converge_tracker > MAX_ERROR_CONSECUTIVE_DIVERGE_ALLOWED)	// not converged for last six iterations
 				return ERCODE_ERROR_DIVERGING;
 			double X2_temp = X2_1_before - er_1_before * (X2_1_before - X2_2_before) / (er_1_before - er_2_before);
 			double var_temp = X2_temp* X2_temp / (1 + X2_temp* X2_temp);
@@ -178,7 +176,11 @@ OrificeCalculation::OrificeCalculation
 
 	int OrificeCalculation::GetOrificeDiameter_Compressible_Choked(double& diameter)
 	{
+		// The formula here is from
+		// http://engineeringstudymaterial.net/ebook/fluid-mechanics-by-yunus-cengel-john/
+		// chapter 12		
 		int err_code = 0;
+
 		double temp_calc_1 = sqrt(m_K / (m_GasConst_R* m_InletTemp));
 		double temp_calc_2 = pow(
 			(2 / (m_K + 1)),
@@ -188,7 +190,7 @@ OrificeCalculation::OrificeCalculation
 		diameter = sqrt(4 * Area_throat / _PI_);
 		return err_code;
 	}
-
+	/*
 	int OrificeCalculation::GetOrificeDiameter_Compressible_NotChoked(double& diameter)
 	{
 		int err_code = 0;
@@ -201,7 +203,7 @@ OrificeCalculation::OrificeCalculation
 		diameter = sqrt( 4 * orifice_area/ _PI_ );
 		return err_code;
 	}
-
+	*/
 	int OrificeCalculation::GetOrificeMassFlowRate ( double upstream_pressure, double downstream_pressure,
 														double pipe_in_diameter,  double orifice_diameter,
 														double isentropic_exponent, int tapping_option,
@@ -218,22 +220,19 @@ OrificeCalculation::OrificeCalculation
 		// is the fluid compressible or not?
 		if (m_Compressible == false) // incompressible
 		{
-			err_code = GetOrificeMassFlowRate_InCompressible(flow_rate);
+			err_code = GetOrificeMassFlowRate_I_5167(flow_rate);
 		}
 		else
 		{
 			double pressure_ratio = downstream_pressure / upstream_pressure;
 			if (pressure_ratio > _I_5167_PRESSURE_RATIO_LIMIT_)
-				err_code = GetOrificeMassFlowRate_Compressible_I_5167(flow_rate);
-			else if (pressure_ratio > _CHOKING_PRESSURE_RATIO_LOWER_LIMIT_ &&
-					pressure_ratio < _CHOKING_PRESSURE_RATIO_UPPER_LIMIT_)
-				err_code = GetOrificeMassFlowRate_Compressible_Choked(flow_rate);
+				err_code = GetOrificeMassFlowRate_I_5167(flow_rate);
 			else
-				err_code = GetOrificeMassFlowRate_Compressible_NotChoked(flow_rate);
+				err_code = GetOrificeMassFlowRate_Compressible_Choked(flow_rate);
 		}
 		return err_code;
     }
-
+/*
 	int OrificeCalculation::GetOrificeMassFlowRate_InCompressible(double& flow_rate)
 	{
 		int er_code = 0;
@@ -242,8 +241,8 @@ OrificeCalculation::OrificeCalculation
 					sqrt(2 * m_Density * (m_UpstreamP - m_DownstreamP));
 		return er_code;
 	}
-
-	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_I_5167(double & flow_rate)
+*/
+	int OrificeCalculation::GetOrificeMassFlowRate_I_5167(double & flow_rate)
 	{
 		int err_code = 0;
 
@@ -330,6 +329,9 @@ OrificeCalculation::OrificeCalculation
 
 	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_Choked(double &flow_rate)
 	{
+		// The formula here is from
+		// http://engineeringstudymaterial.net/ebook/fluid-mechanics-by-yunus-cengel-john/
+		// chapter 12
 		int err_code = 0;
 		double temp_calc_1 = sqrt(m_K / (m_GasConst_R* m_InletTemp));
 		double temp_calc_2 = pow(
@@ -340,7 +342,7 @@ OrificeCalculation::OrificeCalculation
 		flow_rate = Area_throat * m_UpstreamP * temp_calc_1 * temp_calc_2;
 		return err_code;
 	}
-
+/*
 	int OrificeCalculation::GetOrificeMassFlowRate_Compressible_NotChoked(double &flow_rate)
 	{
 		int err_code = 0;
@@ -353,11 +355,15 @@ OrificeCalculation::OrificeCalculation
 		flow_rate = orifice_area * temp_calc_1 * pow( temp_calc_2, temp_calc_3);
 		return err_code;
 	}
-
+*/
 	double OrificeCalculation::CalculateEpsilon(double beta, double pressure_ratio, double isentropic_exponent)
 	{
 		// ISO 5167-2:2003(E) , Section 5.2.2.2
-		double epsilon = 1 - (0.351 + 0.256 * pow(beta, 4) + 0.93 * pow(beta, 8)) * (1 - pow(pressure_ratio, (1 / isentropic_exponent)));
+		double epsilon = 0;
+		if (!m_Compressible)
+			epsilon = 1;
+		else
+			epsilon = 1 - (0.351 + 0.256 * pow(beta, 4) + 0.93 * pow(beta, 8)) * (1 - pow(pressure_ratio, (1 / isentropic_exponent)));
 		return epsilon;
 	}
 

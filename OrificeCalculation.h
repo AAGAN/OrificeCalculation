@@ -13,7 +13,8 @@
 #define ERCODE_DISCHARGE_COEFFICIENT_NEGATIVE -7
 
 #define MAX_NO_OF_ITERATIONS 10000
-
+#define MAX_ERROR_CONSECUTIVE_DIVERGE_ALLOWED 20 // we will allow 20 consecutive iterations
+												 // where error diverges till we quit
 class OrificeCalculation
 {
   public:
@@ -45,7 +46,7 @@ class OrificeCalculation
 		double flow_rate,			// kg/s
 		double pipe_in_diameter,	//m
 		double isentropic_exponent, //dimensionless
-		int tapping_option ,
+		int tapping_option ,		// enum Tapping_Option values
 		double & orifice_dia		// orifice diameter in meters
 	);
     
@@ -56,7 +57,7 @@ class OrificeCalculation
         double pipe_in_diameter,    // m
 		double orifice_diameter	,	//m
 		double isentropic_exponent,	// dimensionless
-		int tapping_option,
+		int tapping_option,			// enum Tapping_Option values
 		double &mass_flow_rate		// 
 	);
 
@@ -64,24 +65,23 @@ class OrificeCalculation
 
 	int ValidateInputs();
   
-	int GetOrificeMassFlowRate_InCompressible(double& mass_flow_rate);
+	//int GetOrificeMassFlowRate_InCompressible(double& mass_flow_rate);
 
-	int GetOrificeMassFlowRate_Compressible_I_5167(double& mass_flow_rate);
+	int GetOrificeMassFlowRate_I_5167(double& mass_flow_rate);
 
 	int GetOrificeMassFlowRate_Compressible_Choked(double& mass_flow_rate);
 
-	int GetOrificeMassFlowRate_Compressible_NotChoked(double& mass_flow_rate);
+	//int GetOrificeMassFlowRate_Compressible_NotChoked(double& mass_flow_rate);
 
-	int GetOrificeDiameter_InCompressible(double& mass_flow_rate);
+	//int GetOrificeDiameter_InCompressible(double& mass_flow_rate);
 
-	int GetOrificeDiameter_Compressible_I_5167(double &diameter);
+	int GetOrificeDiameter_I_5167(double &diameter);
 
 	int GetOrificeDiameter_Compressible_Choked(double &diameter);
 
-	int GetOrificeDiameter_Compressible_NotChoked(double& mass_flow_rate);
+	//int GetOrificeDiameter_Compressible_NotChoked(double& mass_flow_rate);
 
-
-	int CalculateDischargeCoefficient(	double beta, 
+	int CalculateDischargeCoefficient(		double beta, 
 											double pipe_inner_dia, /* meters*/
 											double Reynolds_No_D, 
 											Tapping_Option tapping_option,
@@ -89,12 +89,16 @@ class OrificeCalculation
 
 	double GetReynolds_D_Assumption();
 
-	double CalculateEpsilon(double beta, double pressure_ratio, double isentropic_exponent);
+	double CalculateEpsilon(	double beta, 
+								double pressure_ratio, 
+								double isentropic_exponent);
 
-	int CalculateMachNumber(double inlet_pressure, double outlet_pressure,
-		double isentropic_coeff, double& Mach_number);
+	int CalculateMachNumber(	double inlet_pressure, 
+								double outlet_pressure,
+								double isentropic_coeff, 
+								double& Mach_number);
 
-	void GetPressureTappingSpacing(Tapping_Option tapping_option, 
+	void GetPressureTappingSpacing(	Tapping_Option tapping_option, 
 									double pipe_inner_dia, 
 									double & L1, 
 									double & L2);

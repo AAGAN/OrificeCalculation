@@ -5,6 +5,7 @@
 // basic file operations
 #include <iostream>
 #include <fstream>
+#include <assert.h>
 using namespace std;
 
 int TestHardCodedCases();
@@ -14,8 +15,8 @@ void ExplainErrorCode(int err_code);
 
 int main()
 {
-	TestHardCodedCases();
-	//TestFileInputCases();
+	//TestHardCodedCases();
+	TestFileInputCases();
 
     return 0;
 }
@@ -202,8 +203,13 @@ int TestFile()
 
 int TestHardCodedCases()
 {
-	// Test case 1: Orifice flow rate
-	if (true)
+
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Test case 1: Orifice flow rate calculation
+	// compressible fluids
+	// pressure drop ratio > 0.75, so ISO 5167 based calculation
+	if (false)
 	{
 		// Input values
 		double viscosity = 4.0416e-6;
@@ -234,9 +240,15 @@ int TestHardCodedCases()
 		assert(er_code == 0 && fabs(flow_rate - 0.2520) < 1e-4); // flow_rate should be 0.2520
 	}
 
-	// Test case 2 : Orifice diameter
-	if (true)
-	{
+
+	// Test case 2 : Orifice diameter calculation
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Orifice diameter calculation
+	// compressible fluids
+	// pressure drop ratio > 0.75, so ISO 5167 based calculation	
+	if (false)
+  {
 		// Input values
 		double viscosity = 4.0416e-6;
 		double density = 4.0175;
@@ -248,7 +260,7 @@ int TestHardCodedCases()
 		double upstream_pressure = 600000;
 		double downstream_pressure = 500000;
 		double pipe_inner_dia = 0.1;
-		double flow_rate = 0.0248;
+		double flow_rate = 0.2498;
 		double isentropic_exponent = 1.3;
 		OrificeCalculation::Tapping_Option tapping_option = OrificeCalculation::Tapping_Option::Corner_Tapping;
 
@@ -260,11 +272,16 @@ int TestHardCodedCases()
 																		gas_constant, inlet_temp);	
 		er_code = test_calculation.GetOrificeDiameter( upstream_pressure,downstream_pressure,flow_rate,
 												 pipe_inner_dia, isentropic_exponent, tapping_option, diameter);
-		assert(er_code == 0 &&  fabs(diameter - 0.02480) < 1e-4); // diameter shold be 0.02480	
+		assert(er_code == 0 &&  fabs(diameter - 0.02489) < 1e-4); // diameter shold be 0.02480	
 	}
 
 	// Test case 3 : Orifice flowrate, incompressible
-	if (true)
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Flowrate calculation
+	// Incompressible fluids
+	// pressure drop ratio > 0.75, so ISO 5167 based calculation	
+	if (false)
 	{
 		// Input values
 		double viscosity = 1.006e-6;
@@ -294,7 +311,12 @@ int TestHardCodedCases()
 		assert(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
 	}
 
-	//Test case 4: Orifice diameter, incompressible
+	//Test case 4: Orifice diameter and flowrate, incompressible
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Orifice diameter calculation
+	// incompressible fluids
+	// pressure drop ratio > 0.75, so ISO 5167 based calculation	
 	if (true)
 	{
 		// Input values
@@ -322,11 +344,28 @@ int TestHardCodedCases()
 														  flow_rate, pipe_inner_dia, isentropic_exponent,
 														  tapping_option, 
 														  orifice_dia);
-		assert(er_code == 0 && fabs(orifice_dia - 0.025) < 1e-2); // flow_rate should be 0.025
+
+		assert(er_code == 0 && fabs(orifice_dia - 0.025) < 1e-2); 
+
+		// test case for flow rate
+		orifice_dia = 0.025;
+		flow_rate = 0;
+		er_code = test_calculation.GetOrificeMassFlowRate(upstream_pressure, downstream_pressure, 
+														  pipe_inner_dia,orifice_dia, isentropic_exponent,
+														  tapping_option, 
+														  flow_rate);
+		assert(er_code == 0 && fabs(flow_rate - 4.15) < 1e-2); 
+
 	}
 
-	// Test case 4 : Orifice flowrate, tapping option - flange
-	if(true)
+	// Test case 5 : Orifice flowrate, tapping option - flange
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Orifice flowrate calculation
+	// compressible fluids
+	// pressure drop ratio > 0.75, so ISO 5167 based calculation	
+	// Tapping option changed from corner to flange
+	if (false)
 	{
 		// Input values
 		double viscosity = 4.0416e-6;
@@ -354,11 +393,16 @@ int TestHardCodedCases()
 														  tapping_option, 
 														  flow_rate);
 
-		assert(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
+		assert(er_code == 0 && fabs(flow_rate - 0.2443) < 1e-2); 
 	}
 
-	// Test case 5 : Choked flow, compressible, calculate mass flow rate
-	if(true)
+	// Test case 6 : Choked flow, high pressure drop
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Orifice flow rate calculation
+	// compressible fluids
+	// pressure drop ratio < 0.75, choked flow
+	if(false)
 	{
 		// Input values
 		double viscosity = 4.0416e-6;
@@ -386,10 +430,15 @@ int TestHardCodedCases()
 														  tapping_option, 
 														  flow_rate);
 
-		assert(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
+		assert(er_code == 0 && fabs(flow_rate - 1.0434) < 1e-2); 
 	}
 
-	// Test case 5 : Choked flow, compressible, calculate orifice dia
+	// Test case 7 : Choked flow, compressible, calculate orifice dia
+	// For testing and validation, the following website was used
+	// http://www.pipeflowcalculations.net/orifice.xhtml
+	// Orifice diameter calculation
+	// compressible fluids
+	// pressure drop ratio < 0.75, choked flow
 	if(true)
 	{
 		// Input values
@@ -417,7 +466,8 @@ int TestHardCodedCases()
 														  tapping_option, 
 														  orifice_dia);
 
-		assert(er_code == 0 && fabs(flow_rate - 4.17) < 1e-2); // flow_rate should be 4.17
+
+		assert(er_code == 0 && fabs(orifice_dia - 0.0248) < 1e-2); 
 	}
 	return 0;
 }
